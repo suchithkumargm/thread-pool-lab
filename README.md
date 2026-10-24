@@ -10,10 +10,10 @@
 ## Demo
 
 ### Single Instance — Thread Pool Live View
-https://github.com/suchithkumargm/thread-pool-lab/raw/main/media/Demo.mov
+![Single instance demo](media/demo.gif)
 
 ### Multi-Instance Cluster + Failover (700 concurrent, 2 instances killed mid-run)
-https://github.com/suchithkumargm/thread-pool-lab/raw/main/media/multiple%20instances%20demo.mov
+![Multi-instance cluster demo](media/multiple-instances-demo.gif)
 
 ![Dashboard](media/img_4.png)
 ![Request Timeline](media/img_1.png)
