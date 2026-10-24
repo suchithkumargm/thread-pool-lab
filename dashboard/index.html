@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thread Pool Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080b12;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;padding:22px;max-width:1440px;margin:0 auto}
+
+/* Header */
+.header{margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid #151c2c}
+h1{font-size:1.7rem;font-weight:800;background:linear-gradient(100deg,#00d4aa 0%,#60efdf 60%,#a78bfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;letter-spacing:-.5px}
+.subtitle{color:#3d5066;font-size:12px;letter-spacing:.2px}
+
+/* Stat Cards */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#0e1220;border-radius:14px;padding:18px 20px;border:1px solid #151c2c;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent,#00d4aa);border-radius:2px 0 0 2px}
+.stat-label{color:#3d5066;font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;font-weight:700}
+.stat-value{font-size:2.2rem;font-weight:800;color:#f1f5f9;line-height:1;font-variant-numeric:tabular-nums}
+.stat-sub{font-size:11px;color:#1e2d40;margin-top:6px}
+
+/* Cards */
+.card{background:#0e1220;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid #151c2c}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:#3d5066;margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';width:3px;height:14px;background:#00d4aa;border-radius:2px;flex-shrink:0}
+
+/* Per-instance cards row */
+.instances-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.instance-card{background:#0e1220;border:1px solid #151c2c;border-radius:14px;padding:16px;transition:border-color .2s}
+.instance-card.down{opacity:0.45;border-color:#ef444422}
+.instance-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.instance-label{font-size:12px;font-weight:700;color:#e2e8f0}
+.instance-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
+.instance-status.up{background:#00d4aa22;color:#00d4aa;border:1px solid #00d4aa44}
+.instance-status.down{background:#ef444422;color:#ef4444;border:1px solid #ef444444}
+.instance-count{font-size:11px;color:#3d5066;margin-bottom:8px;font-variant-numeric:tabular-nums}
+.instance-cpu{font-size:11px;color:#3d5066;margin-top:8px;font-variant-numeric:tabular-nums}
+.mini-grid{display:flex;flex-wrap:wrap;gap:3px}
+.msq{width:14px;height:14px;border-radius:3px;background:#112b1a;border:1px solid #1a4428;transition:background .12s}
+.msq.busy{background:#c91d1d;border-color:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.5)}
+
+/* Thread Grid (combined) */
+#thread-grid{display:flex;flex-wrap:wrap;gap:5px;padding:2px 0}
+.tsq{width:22px;height:22px;border-radius:5px;background:#112b1a;border:1px solid #1a4428;transition:background .12s,box-shadow .12s,border-color .12s;cursor:default}
+.tsq.busy{background:#c91d1d;border-color:#ef4444;box-shadow:0 0 9px rgba(239,68,68,.6)}
+.tsq.virt{background:#6d28d9;border-color:#8b5cf6;box-shadow:0 0 9px rgba(109,40,217,.5)}
+.grid-legend{display:flex;gap:18px;margin-top:12px;font-size:11px;color:#3d5066;flex-wrap:wrap;align-items:center}
+.gl-item{display:flex;align-items:center;gap:6px}
+.gl-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+
+/* DB Bar */
+.db-bar-track{height:30px;background:#09101a;border-radius:9px;overflow:hidden;display:flex;margin-bottom:9px;border:1px solid #151c2c}
+.db-active{background:linear-gradient(90deg,#00b894,#00d4aa);transition:width .35s;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;min-width:0;overflow:hidden}
+.db-idle{background:#131e2f;transition:width .35s;min-width:0}
+.db-label{font-size:11px;color:#253447;font-variant-numeric:tabular-nums}
+
+/* Charts */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{background:#0e1220;border-radius:14px;padding:18px;border:1px solid #151c2c;height:215px}
+.chart-card canvas{max-height:165px}
+
+/* Timeline */
+#timeline-card{background:#0e1220;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid #151c2c}
+#tl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+#tl-axis{display:flex;justify-content:space-between;font-size:10px;color:#253447;margin-bottom:5px;padding-left:86px;padding-right:10px}
+#tl-rows{max-height:500px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#1e2a3c transparent}
+#tl-rows::-webkit-scrollbar{width:4px}
+#tl-rows::-webkit-scrollbar-track{background:transparent}
+#tl-rows::-webkit-scrollbar-thumb{background:#1e2a3c;border-radius:4px}
+.tl-row{display:flex;align-items:center;margin-bottom:3px;height:25px}
+.tl-label{width:82px;font-size:10px;color:#3d5066;flex-shrink:0;text-align:right;padding-right:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tl-label.tl-new{color:#00d4aa}
+.tl-track{flex:1;height:21px;background:#09101a;border-radius:5px;overflow:hidden;display:flex;position:relative;margin-right:8px;border:1px solid #151c2c}
+.tl-wait{background:#d4570c;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,.9);overflow:hidden;white-space:nowrap;min-width:0;font-weight:700}
+.tl-exec{background:#059669;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;overflow:hidden;white-space:nowrap;min-width:0;font-weight:700}
+.tl-err{background:rgba(239,68,68,.15);height:100%;flex:1;border:1px solid rgba(239,68,68,.25)}
+.tl-legend{display:flex;gap:20px;font-size:11px;color:#3d5066;margin-top:11px;flex-wrap:wrap;align-items:center}
+.tl-leg-item{display:flex;align-items:center;gap:6px}
+.tl-leg-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+/* Scenarios */
+.scenario-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;margin-bottom:16px}
+.sc-card{background:#0e1220;border:1px solid #151c2c;border-radius:14px;overflow:hidden;transition:border-color .2s,box-shadow .2s,transform .15s;display:flex;flex-direction:column}
+.sc-card:hover{border-color:#1f2d45;transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.sc-card.active{border-color:var(--sc-color,#00d4aa);box-shadow:0 0 24px rgba(0,212,170,.12)}
+.sc-top{padding:14px 15px 10px;flex:1}
+.sc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sc-name{font-weight:700;color:#e2e8f0;font-size:13px;line-height:1.3;flex:1}
+.sc-badge{font-size:9px;font-weight:800;letter-spacing:.7px;padding:3px 8px;border-radius:20px;text-transform:uppercase;flex-shrink:0;margin-top:1px;background:var(--sc-badge-bg,#00d4aa1a);color:var(--sc-color,#00d4aa);border:1px solid var(--sc-color,#00d4aa)33}
+.sc-desc{color:#3d5066;font-size:11px;line-height:1.65;margin-bottom:10px}
+.sc-cfg{background:#060912;border-radius:7px;padding:8px 10px;font-size:10px;color:#4b7ba8;font-family:'SF Mono',Menlo,monospace;border:1px solid #111825;white-space:pre-wrap;margin-bottom:2px}
+.sc-cfg-label{font-size:9px;color:#253447;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;font-weight:700}
+.sc-footer{padding:10px 15px 13px;border-top:1px solid #111825;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sc-meta{font-size:10px;color:#253447;font-variant-numeric:tabular-nums}
+.btn-run{background:var(--sc-color,#00d4aa);color:#000;border:none;padding:7px 20px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:800;transition:opacity .15s,transform .1s;letter-spacing:.3px}
+.btn-run:hover{opacity:.85;transform:translateY(-1px)}
+.sc-card.active .btn-run{background:#ef4444;color:#fff}
+.btn-stop{background:#ef4444;color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;display:none;transition:background .15s}
+.btn-stop:hover{background:#dc2626}
+.sc-accent-bar{height:3px;background:var(--sc-color,#00d4aa);opacity:.7}
+
+/* Little's Law */
+.littles{background:#0e1220;border-radius:14px;padding:18px;border:1px solid #151c2c;margin-bottom:16px}
+.littles input{background:#080b12;border:1px solid #151c2c;border-radius:7px;color:#e2e8f0;padding:6px 10px;width:84px;font-size:13px;outline:none;transition:border-color .2s}
+.littles input:focus{border-color:#00d4aa55}
+.littles label{color:#3d5066;font-size:11px;margin-right:5px;font-weight:600}
+.law-out{margin-top:10px;font-size:13px;color:#00d4aa;font-weight:700}
+.law-actual{font-size:11px;color:#3d5066;margin-top:5px}
+
+/* Connection badge */
+.conn{position:fixed;top:14px;right:18px;font-size:10px;padding:5px 13px;border-radius:20px;background:#0e1220;color:#3d5066;border:1px solid #151c2c;display:flex;align-items:center;gap:7px;z-index:100;font-weight:600}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#3d5066;flex-shrink:0}
+.conn.ok .conn-dot{background:#00d4aa;box-shadow:0 0 7px #00d4aa88}
+.conn.partial .conn-dot{background:#f59e0b;box-shadow:0 0 7px #f59e0b88}
+.conn.err .conn-dot{background:#ef4444;box-shadow:0 0 7px #ef444488}
+.conn.ok{color:#00d4aa;border-color:#00d4aa22}
+.conn.partial{color:#f59e0b;border-color:#f59e0b22}
+.conn.err{color:#ef4444;border-color:#ef444422}
+
+/* Section divider */
+.section-header{font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:#253447;margin-bottom:14px;font-weight:700;display:flex;align-items:center;gap:10px}
+.section-header::after{content:'';flex:1;height:1px;background:#151c2c}
+</style>
+</head>
+<body>
+<div class="conn" id="conn"><span class="conn-dot"></span><span id="conn-text">Connecting…</span></div>
+
+<div class="header">
+  <h1>Thread Pool Lab</h1>
+  <p class="subtitle">Live view of Tomcat NIO thread-pool behavior &nbsp;·&nbsp; 3 instances behind :8000 &nbsp;·&nbsp; metrics from :8081/:8083/:8085 &nbsp;·&nbsp; load generator on :8090</p>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card" style="--accent:#ef4444">
+    <div class="stat-label">Busy Threads (Total)</div>
+    <div class="stat-value" id="sBusy">—</div>
+    <div class="stat-sub" id="sBusySub">across all instances</div>
+  </div>
+  <div class="stat-card" style="--accent:#00d4aa">
+    <div class="stat-label">DB Pool Active</div>
+    <div class="stat-value" id="sDb">—</div>
+    <div class="stat-sub" id="sDbSub">of — connections</div>
+  </div>
+  <div class="stat-card" style="--accent:#f59e0b">
+    <div class="stat-label">Active Instances</div>
+    <div class="stat-value" id="sInst">—</div>
+    <div class="stat-sub">/ 3 online</div>
+  </div>
+  <div class="stat-card" style="--accent:#818cf8">
+    <div class="stat-label">Requests Done</div>
+    <div class="stat-value" id="sReqs">—</div>
+    <div class="stat-sub" id="sLat">— / — ms (p50/p99)</div>
+  </div>
+</div>
+
+<!-- Per-instance cards -->
+<div class="section-header">Per-Instance Thread Pools</div>
+<div class="instances-row" id="instances-row">
+  <div class="instance-card down" id="inst-card-0">
+    <div class="instance-header">
+      <span class="instance-label">Instance 1 · :8080</span>
+      <span class="instance-status down" id="inst-status-0">DOWN</span>
+    </div>
+    <div class="instance-count" id="inst-count-0">— / — busy</div>
+    <div class="mini-grid" id="inst-grid-0"></div>
+    <div class="instance-cpu" id="inst-cpu-0">CPU: —</div>
+  </div>
+  <div class="instance-card down" id="inst-card-1">
+    <div class="instance-header">
+      <span class="instance-label">Instance 2 · :8082</span>
+      <span class="instance-status down" id="inst-status-1">DOWN</span>
+    </div>
+    <div class="instance-count" id="inst-count-1">— / — busy</div>
+    <div class="mini-grid" id="inst-grid-1"></div>
+    <div class="instance-cpu" id="inst-cpu-1">CPU: —</div>
+  </div>
+  <div class="instance-card down" id="inst-card-2">
+    <div class="instance-header">
+      <span class="instance-label">Instance 3 · :8084</span>
+      <span class="instance-status down" id="inst-status-2">DOWN</span>
+    </div>
+    <div class="instance-count" id="inst-count-2">— / — busy</div>
+    <div class="mini-grid" id="inst-grid-2"></div>
+    <div class="instance-cpu" id="inst-cpu-2">CPU: —</div>
+  </div>
+</div>
+
+<!-- Combined Thread Grid -->
+<div class="card">
+  <div class="card-title" id="gridTitle">Combined View — waiting for instances…</div>
+  <div id="thread-grid"></div>
+  <div class="grid-legend">
+    <div class="gl-item"><div class="gl-dot" style="background:#112b1a;border:1px solid #1a4428"></div><span>idle</span></div>
+    <div class="gl-item"><div class="gl-dot" style="background:#c91d1d;border:1px solid #ef4444;box-shadow:0 0 7px rgba(239,68,68,.5)"></div><span>busy</span></div>
+    <div class="gl-item"><div class="gl-dot" style="background:#6d28d9;border:1px solid #8b5cf6;box-shadow:0 0 7px rgba(109,40,217,.4)"></div><span>virtual thread</span></div>
+  </div>
+</div>
+
+<!-- DB Pool -->
+<div class="card">
+  <div class="card-title">DB Connection Pool (HikariCP)</div>
+  <div class="db-bar-track">
+    <div class="db-active" id="dbA" style="width:0%"></div>
+    <div class="db-idle"   id="dbI" style="width:0%"></div>
+  </div>
+  <div class="db-label" id="dbLbl">active / idle / waiting / max</div>
+</div>
+
+<!-- Charts -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="card-title">Request Latency (ms)</div>
+    <canvas id="latChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Throughput (req / second)</div>
+    <canvas id="tpChart"></canvas>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div id="timeline-card">
+  <div id="tl-header">
+    <div class="card-title" style="margin-bottom:0">
+      Request Timeline &nbsp;—&nbsp; latest at top &nbsp;·&nbsp;
+      <span style="color:#d4570c;font-weight:700">orange = queue wait</span> &nbsp;·&nbsp;
+      <span style="color:#059669;font-weight:700">green = execution</span>
+    </div>
+  </div>
+  <div id="tl-axis"></div>
+  <div id="tl-rows"><div style="color:#253447;font-size:12px;padding:10px 0">Run a scenario to see the timeline…</div></div>
+  <div class="tl-legend">
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#d4570c"></div><strong style="color:#d4570c">Wait</strong> — time in queue before a thread picked up the request</div>
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#059669"></div><strong style="color:#059669">Exec</strong> — time a thread spent running the request</div>
+  </div>
+</div>
+
+<!-- Little's Law -->
+<div class="littles">
+  <div class="card-title">Little's Law: L = λ × W</div>
+  <label>λ (req/s)</label><input id="lL" type="number" value="10" min="0.1" step="0.1">
+  <span style="margin:0 14px;color:#253447;font-size:16px">×</span>
+  <label>W (ms)</label><input id="lW" type="number" value="200" min="1">
+  <div class="law-out" id="lawOut">Predicted concurrent requests (L): —</div>
+  <div class="law-actual" id="lawAct">Actual busy threads: —</div>
+</div>
+
+<!-- Stop button -->
+<div style="margin-bottom:14px">
+  <button class="btn-stop" id="stopBtn" onclick="stop()">■ Stop Scenario</button>
+</div>
+
+<!-- Scenarios -->
+<div class="section-header">Scenarios</div>
+<div class="scenario-grid" id="scenarios"><div style="color:#253447">Loading…</div></div>
+
+<script>
+const INSTANCES = [
+  { id: 1, label: 'Instance 1', mgmt: 'http://localhost:8081' },
+  { id: 2, label: 'Instance 2', mgmt: 'http://localhost:8083' },
+  { id: 3, label: 'Instance 3', mgmt: 'http://localhost:8085' },
+];
+const LG = 'http://localhost:8090';
+
+let instanceMetrics = [null, null, null];
+let results = {recent:[],p50:0,p99:0,count:0,errors:0}, lgStatus = {running:false};
+let activeScenario = null, latH = [], latChart, tpChart;
+const MAX_H = 60;
+
+async function get(url, opts) {
+  try { const r = await fetch(url, opts); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  catch { return null; }
+}
+
+/* Charts */
+function initCharts() {
+  const base = {
+    responsive:true, maintainAspectRatio:false, animation:{duration:120},
+    scales:{
+      x:{ticks:{color:'#253447',maxTicksLimit:6},grid:{color:'#0e1525'}},
+      y:{ticks:{color:'#253447'},grid:{color:'#0e1525'},beginAtZero:true}
+    },
+    plugins:{legend:{labels:{color:'#3d5066',boxWidth:10,font:{size:11}}}}
+  };
+  latChart = new Chart(document.getElementById('latChart'),{type:'line',
+    data:{labels:[],datasets:[
+      {label:'p50',data:[],borderColor:'#00d4aa',backgroundColor:'#00d4aa0a',tension:.3,pointRadius:2,borderWidth:2},
+      {label:'p99',data:[],borderColor:'#f97316',backgroundColor:'#f973160a',tension:.3,pointRadius:2,borderWidth:2}
+    ]},options:{...base}});
+  tpChart = new Chart(document.getElementById('tpChart'),{type:'bar',
+    data:{labels:[],datasets:[{label:'req/s',data:[],backgroundColor:'#00d4aa33',borderColor:'#00d4aa',borderWidth:1.5}]},
+    options:{...base}});
+}
+
+/* Mini grid per instance */
+function renderMiniGrid(idx, m) {
+  const card   = document.getElementById('inst-card-'+idx);
+  const status = document.getElementById('inst-status-'+idx);
+  const count  = document.getElementById('inst-count-'+idx);
+  const grid   = document.getElementById('inst-grid-'+idx);
+  const cpu    = document.getElementById('inst-cpu-'+idx);
+
+  if (!m) {
+    card.className = 'instance-card down';
+    status.className = 'instance-status down';
+    status.textContent = 'DOWN';
+    count.textContent = '— / — busy';
+    cpu.textContent = 'CPU: —';
+    grid.innerHTML = '';
+    return;
+  }
+
+  card.className = 'instance-card';
+  status.className = 'instance-status up';
+  status.textContent = 'UP';
+
+  const max  = Math.max(1, m.threads_max || 200);
+  const busy = Math.min(m.threads_busy || 0, max);
+  const show = Math.min(max, 200);
+  count.textContent = `${busy} / ${max} busy`;
+  cpu.textContent   = m.cpu_process != null ? `CPU: ${(m.cpu_process*100).toFixed(1)}%` : 'CPU: —';
+
+  while (grid.children.length < show) { const d=document.createElement('div'); d.className='msq'; grid.appendChild(d); }
+  while (grid.children.length > show) grid.removeChild(grid.lastChild);
+  for (let i=0;i<show;i++) grid.children[i].className='msq'+(i<busy?' busy':'');
+}
+
+/* Combined thread grid */
+function renderCombinedGrid() {
+  const live = instanceMetrics.filter(Boolean);
+  if (!live.length) {
+    document.getElementById('gridTitle').textContent = 'Combined View — waiting for instances…';
+    return;
+  }
+  const totalMax  = live.reduce((s,m)=>s+(m.threads_max||200),0);
+  const totalBusy = live.reduce((s,m)=>s+(m.threads_busy||0),0);
+  const isV = live.some(m=>m.virtual_threads);
+  document.getElementById('gridTitle').textContent = isV
+    ? `Combined Virtual Threads — ${totalBusy} busy across ${live.length} instances`
+    : `Combined Thread Pool — ${totalBusy} of ${totalMax} threads busy (${live.length} instances)`;
+
+  const show = Math.min(totalMax, 600);
+  const g = document.getElementById('thread-grid');
+  while (g.children.length < show) { const d=document.createElement('div'); d.className='tsq'; g.appendChild(d); }
+  while (g.children.length > show) g.removeChild(g.lastChild);
+  for (let i=0;i<show;i++) g.children[i].className='tsq'+(i<totalBusy?(isV?' virt':' busy'):'');
+}
+
+/* DB bar — use first available instance */
+function renderDb(m) {
+  if (!m) return;
+  const max=Math.max(1,m.db_pool_max||1), a=m.db_pool_active||0, id=m.db_pool_idle||0, p=m.db_pool_pending||0;
+  document.getElementById('dbA').style.width=Math.min(100,(a/max)*100)+'%';
+  document.getElementById('dbA').textContent=a>0?a:'';
+  document.getElementById('dbI').style.width=Math.min(100,(id/max)*100)+'%';
+  document.getElementById('dbLbl').textContent=`active: ${a}  ·  idle: ${id}  ·  waiting: ${p}  ·  max: ${max}`;
+}
+
+/* Stats */
+function updateStats() {
+  const live = instanceMetrics.filter(Boolean);
+  const upCount = live.length;
+  const totalBusy = live.reduce((s,m)=>s+(m.threads_busy||0),0);
+  const totalMax  = live.reduce((s,m)=>s+(m.threads_max||200),0);
+  const firstDb   = live[0] || null;
+
+  document.getElementById('sBusy').textContent    = upCount ? totalBusy : '—';
+  document.getElementById('sBusySub').textContent  = upCount ? `of ${totalMax} total max` : 'across all instances';
+  document.getElementById('sDb').textContent      = firstDb ? (firstDb.db_pool_active || 0) : '—';
+  document.getElementById('sDbSub').textContent   = firstDb ? `of ${firstDb.db_pool_max||'?'} connections` : 'of — connections';
+  document.getElementById('sInst').textContent    = upCount || '0';
+  document.getElementById('sReqs').textContent    = results.count || 0;
+  document.getElementById('sLat').textContent     = `${results.p50||'—'} / ${results.p99||'—'} ms (p50/p99)`;
+  document.getElementById('stopBtn').style.display = lgStatus.running ? 'block' : 'none';
+
+  // Connection badge
+  const el = document.getElementById('conn');
+  const tx = document.getElementById('conn-text');
+  if (upCount === 3) {
+    el.className = 'conn ok'; tx.textContent = '3/3 up';
+  } else if (upCount > 0) {
+    el.className = 'conn partial'; tx.textContent = `${upCount}/3 up`;
+  } else {
+    el.className = 'conn err'; tx.textContent = 'All instances offline';
+  }
+}
+
+/* Latency chart */
+function pushLatChart() {
+  if (!results.count) return;
+  const t = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  latH.push({t, p50:results.p50||0, p99:results.p99||0});
+  if (latH.length>MAX_H) latH.shift();
+  latChart.data.labels = latH.map(h=>h.t);
+  latChart.data.datasets[0].data = latH.map(h=>h.p50);
+  latChart.data.datasets[1].data = latH.map(h=>h.p99);
+  latChart.update('none');
+}
+
+/* Throughput chart */
+function pushTpChart() {
+  const recent=(results.recent||[]);
+  if (recent.length<2) return;
+  const bk={};
+  recent.forEach(r=>{ const s=Math.floor((r.complete_at||r.sent_at)/1000); bk[s]=(bk[s]||0)+1; });
+  const keys=Object.keys(bk).sort().slice(-12);
+  tpChart.data.labels=keys.map(k=>new Date(k*1000).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  tpChart.data.datasets[0].data=keys.map(k=>bk[k]||0);
+  tpChart.update('none');
+}
+
+/* Timeline — newest at top */
+function renderTimeline() {
+  const recent=(results.recent||[]);
+  if (!recent.length) return;
+  const done=recent.filter(r=>!r.error&&r.wait_ms!=null&&r.exec_ms!=null);
+  if (!done.length) return;
+
+  const minSent = Math.min(...recent.map(r=>r.sent_at));
+  const maxDone = Math.max(...recent.map(r=>r.complete_at||r.sent_at+(r.total_ms||0)));
+  const span = Math.max(1, maxDone - minSent);
+
+  const ticks=[0,0.25,0.5,0.75,1.0].map(f=>Math.round(f*span)+'ms');
+  document.getElementById('tl-axis').innerHTML = ticks.map(t=>`<span>${t}</span>`).join('');
+
+  const sorted=[...recent].sort((a,b)=>(b.sent_at||0)-(a.sent_at||0));
+  const total=sorted.length;
+
+  document.getElementById('tl-rows').innerHTML = sorted.map((r,i)=>{
+    const reqNum = total - i;
+    const isNew  = i < 3;
+    if (r.error) return `
+      <div class="tl-row">
+        <div class="tl-label ${isNew?'tl-new':''}">#${reqNum} ERR</div>
+        <div class="tl-track"><div class="tl-err" title="${r.error}"></div></div>
+      </div>`;
+
+    const offsetPct = ((r.sent_at-minSent)/span*100).toFixed(1);
+    const waitPct   = ((r.wait_ms||0)/span*100).toFixed(2);
+    const execPct   = ((r.exec_ms||0)/span*100).toFixed(2);
+    const waitLabel = r.wait_ms>80  ? r.wait_ms+'ms' : '';
+    const execLabel = r.exec_ms>80  ? r.exec_ms+'ms' : '';
+
+    return `<div class="tl-row">
+      <div class="tl-label ${isNew?'tl-new':''}" title="${r.thread||''}">#${reqNum}</div>
+      <div class="tl-track">
+        <div style="width:${offsetPct}%;min-width:0;background:transparent;flex-shrink:0"></div>
+        <div class="tl-wait" style="width:${waitPct}%" title="Waited ${r.wait_ms}ms in queue">${waitLabel}</div>
+        <div class="tl-exec" style="width:${execPct}%" title="Executed for ${r.exec_ms}ms">${execLabel}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* Scenarios */
+const SC_STYLE = {
+  chaos:     {color:'#a78bfa', badge:'Chaos',     meta: s => `${Math.round(s.duration/60)}min · up to ${s.max_concur} concurrent`},
+  burst:     {color:'#00d4aa', badge:'Burst',      meta: s => `${s.n} reqs · ${s.params?.ms||'?'}ms each`},
+  sustained: {color:'#f59e0b', badge:'Sustained',  meta: s => `${s.rate} req/s · ${s.duration}s`},
+};
+
+async function renderScenarios() {
+  const ss = await get(LG+'/scenarios');
+  if (!ss) {
+    document.getElementById('scenarios').innerHTML='<div style="color:#253447;font-size:12px">Load generator not running — start: <code>python3 load-generator/load_gen.py</code></div>';
+    return;
+  }
+  document.getElementById('scenarios').innerHTML = ss.map(s=>{
+    const st = SC_STYLE[s.mode] || SC_STYLE.burst;
+    const isActive = activeScenario === s.id;
+    const cfgLines = s.config ? Object.entries(s.config).map(([k,v])=>`${k}=${v}`).join('\n') : null;
+    return `
+    <div class="sc-card ${isActive?'active':''}" id="sc-${s.id}" style="--sc-color:${st.color}">
+      <div class="sc-accent-bar"></div>
+      <div class="sc-top">
+        <div class="sc-header">
+          <div class="sc-name">${s.name}</div>
+          <div class="sc-badge">${st.badge}</div>
+        </div>
+        <div class="sc-desc">${s.description}</div>
+        ${cfgLines?`<div class="sc-cfg-label">Config required</div><div class="sc-cfg">${cfgLines}\nbash start.sh</div>`:''}
+      </div>
+      <div class="sc-footer">
+        <div class="sc-meta">${st.meta(s)}</div>
+        <button class="btn-run" onclick="runScenario('${s.id}')">${isActive?'■ Running':'▶ Run'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function runScenario(id) {
+  activeScenario=id; results={recent:[],p50:0,p99:0,count:0,errors:0}; latH=[];
+  await get(LG+'/stop',{method:'POST'});
+  await new Promise(r=>setTimeout(r,300));
+  const r=await get(LG+'/run/'+id,{method:'POST'});
+  if (r?.error) alert('Error: '+r.error);
+  renderScenarios();
+}
+async function stop() {
+  await get(LG+'/stop',{method:'POST'}); lgStatus.running=false; updateStats();
+}
+
+/* Little's Law */
+function updateLaw() {
+  const lambda=parseFloat(document.getElementById('lL').value)||0;
+  const w=parseFloat(document.getElementById('lW').value)||0;
+  const L=(lambda*w/1000).toFixed(2);
+  document.getElementById('lawOut').textContent=`Predicted L = ${lambda} req/s × ${w}ms / 1000 = ${L} concurrent requests`;
+  const live = instanceMetrics.filter(Boolean);
+  const totalBusy = live.reduce((s,m)=>s+(m.threads_busy||0),0);
+  const actual = live.length ? totalBusy : '?';
+  document.getElementById('lawAct').textContent=`Actual busy threads (total): ${actual}  (expected ≈ ${L})`;
+}
+document.getElementById('lL').oninput=updateLaw;
+document.getElementById('lW').oninput=updateLaw;
+
+/* Poll all 3 management endpoints */
+async function pollMetrics() {
+  const fetches = INSTANCES.map(inst =>
+    get(inst.mgmt + '/actuator/lab').then(m => m || get(inst.mgmt.replace('8081','8080').replace('8083','8082').replace('8085','8084') + '/metrics/snapshot'))
+  );
+  const results_m = await Promise.all(fetches);
+  results_m.forEach((m, idx) => { instanceMetrics[idx] = m; });
+
+  instanceMetrics.forEach((m, idx) => renderMiniGrid(idx, m));
+  renderCombinedGrid();
+
+  const firstDb = instanceMetrics.find(Boolean);
+  renderDb(firstDb);
+  updateStats();
+  updateLaw();
+}
+
+/* Poll load-gen results */
+async function pollResults() {
+  const r=await get(LG+'/results');
+  const s=await get(LG+'/status');
+  if (r) results=r;
+  if (s) lgStatus=s;
+  pushLatChart(); pushTpChart(); renderTimeline(); updateStats();
+}
+
+initCharts(); updateLaw(); renderScenarios();
+pollMetrics(); pollResults();
+setInterval(pollMetrics, 500);
+setInterval(pollResults, 1000);
+setInterval(renderScenarios, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:200}
+      min-spare: ${TOMCAT_MIN_THREADS:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: 20000ms
+
+spring:
+  application:
+    name: thread-pool-lab
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:threadpoollab}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USER:root}
+    password: ${DB_PASS:root}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+      connection-timeout: 3000
+      idle-timeout: 30000
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS:false}
+
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      cors:
+        allowed-origin-patterns: "*"
+        allowed-methods: "GET,POST,OPTIONS"
+        allowed-headers: "*"
+        exposed-headers: "*"
+        max-age: 3600
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.threadpoollab: INFO
+    org.springframework.web: WARN
+    com.zaxxer.hikari: WARN

@@ -1,0 +1,11 @@
+# Maven build output
+app/target/
+
+# IntelliJ IDEA
+*.iml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+
+# OS
+.DS_Store

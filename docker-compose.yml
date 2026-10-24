@@ -1,0 +1,6 @@
+# MySQL is already running in the 'crud-mysql' container (port 3306).
+# This file is kept for reference. Run: docker ps to confirm crud-mysql is up.
+# Database 'threadpoollab' was created with:
+#   docker exec crud-mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS threadpoollab;"
+version: '3.8'
+services: {}
