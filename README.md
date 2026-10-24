@@ -10,10 +10,10 @@
 ## Demo
 
 ### Single Instance — Thread Pool Live View
-https://github.com/suchithkumargm/study-materials/raw/main/spring%20boot/my%20practice%20codes/spring%20boot%20thread%20pool%20testing/media/Demo.mov
+https://github.com/suchithkumargm/thread-pool-lab/raw/main/media/Demo.mov
 
 ### Multi-Instance Cluster + Failover (700 concurrent, 2 instances killed mid-run)
-https://github.com/suchithkumargm/study-materials/raw/main/spring%20boot/my%20practice%20codes/spring%20boot%20thread%20pool%20testing/media/multiple%20instances%20demo.mov
+https://github.com/suchithkumargm/thread-pool-lab/raw/main/media/multiple%20instances%20demo.mov
 
 ![Dashboard](media/img_4.png)
 ![Request Timeline](media/img_1.png)
